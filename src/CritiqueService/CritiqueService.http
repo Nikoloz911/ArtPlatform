@@ -1,0 +1,6 @@
+@CritiqueService_HostAddress = http://localhost:5077
+
+GET {{CritiqueService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
