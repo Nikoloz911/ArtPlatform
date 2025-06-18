@@ -51,7 +51,10 @@ namespace UserService.RabbitMQ
                         Email = userEvent.Email,
                         Password = userEvent.Password,
                         Biography = userEvent.Biography,
-                        ProfilePictureUrl = userEvent.ProfilePictureUrl
+                        ProfilePictureUrl = userEvent.ProfilePictureUrl,
+                        Role = userEvent.Role,
+                        IsVerified = userEvent.IsVerified,
+                        VerificationCode = userEvent.VerificationCode
                     };
 
                     context.Users.Add(user);

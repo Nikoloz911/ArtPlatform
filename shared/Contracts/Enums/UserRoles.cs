@@ -1,7 +1,7 @@
 ﻿namespace Contracts.Enums;
-internal enum USER_ROLES
+public enum USER_ROLES
 {
-    ARTIST,
-    CRITIC,
-    ADMIN,
+    ARTIST = 1,
+    CRITIC = 2,
+    ADMIN = 3,
 }

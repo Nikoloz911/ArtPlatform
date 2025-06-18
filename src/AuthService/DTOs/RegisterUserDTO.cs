@@ -6,4 +6,5 @@ public class RegisterUserDTO
     public string Password { get; set; }
     public string Biography { get; set; }
     public string? ProfilePictureUrl { get; set; }
+    public string Role { get; set; }
 }

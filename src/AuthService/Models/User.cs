@@ -1,4 +1,5 @@
-﻿namespace AuthService.Models;
+﻿using Contracts.Enums;
+namespace AuthService.Models;
 public class User
 {
     public int Id { get; set; }
@@ -7,4 +8,7 @@ public class User
     public string Password { get; set; }
     public string Biography { get; set; }
     public string? ProfilePictureUrl { get; set; }
+    public USER_ROLES Role { get; set; }
+    public bool IsVerified { get; set; }
+    public string VerificationCode { get; set; }
 }

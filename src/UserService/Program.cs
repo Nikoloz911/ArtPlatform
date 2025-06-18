@@ -1,3 +1,6 @@
+/// USER SERVICE
+/// https://localhost:7086
+
 using UserService.RabbitMQ;
 
 var builder = WebApplication.CreateBuilder(args);
