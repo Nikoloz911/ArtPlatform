@@ -1,6 +1,6 @@
 ﻿using Contracts.Enums;
-namespace UserService.Models;
-public class User
+namespace Contracts.Core;
+public class JWTUserModel
 {
     public int Id { get; set; }
     public string Name { get; set; }
@@ -10,5 +10,5 @@ public class User
     public string? ProfilePictureUrl { get; set; }
     public USER_ROLES Role { get; set; }
     public bool IsVerified { get; set; }
-    public string? VerificationCode { get; set; }
+    public string VerificationCode { get; set; }
 }

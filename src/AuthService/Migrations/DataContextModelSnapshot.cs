@@ -55,7 +55,6 @@ namespace AuthService.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("VerificationCode")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");

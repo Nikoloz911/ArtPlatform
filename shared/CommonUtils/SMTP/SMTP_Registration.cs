@@ -1,4 +1,4 @@
-﻿using System.Net;
+﻿    using System.Net;
 using System.Net.Mail;
 namespace CommonUtils.SMTP;
 public class SMTP_Registration

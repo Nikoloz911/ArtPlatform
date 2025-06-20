@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AuthService.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20250618114120_init")]
+    [Migration("20250620112817_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -58,7 +58,6 @@ namespace AuthService.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("VerificationCode")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");

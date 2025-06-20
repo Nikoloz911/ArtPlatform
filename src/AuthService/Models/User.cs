@@ -10,5 +10,5 @@ public class User
     public string? ProfilePictureUrl { get; set; }
     public USER_ROLES Role { get; set; }
     public bool IsVerified { get; set; }
-    public string VerificationCode { get; set; }
+    public string? VerificationCode { get; set; }
 }
