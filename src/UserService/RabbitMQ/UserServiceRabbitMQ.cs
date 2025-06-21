@@ -54,7 +54,8 @@ namespace UserService.RabbitMQ
                         ProfilePictureUrl = userEvent.ProfilePictureUrl,
                         Role = userEvent.Role,
                         IsVerified = userEvent.IsVerified,
-                        VerificationCode = userEvent.VerificationCode
+                        VerificationCode = userEvent.VerificationCode,
+                        VerificationCodeExpirity = userEvent.VerificationCodeExpirity
                     };
 
                     context.Users.Add(user);

@@ -31,7 +31,7 @@ public class AuthController : ControllerBase
         _validator = validator;
     }
 
-    /// REGISTER A NEW USER
+    /// REGISTER A NEW USER    /// REGISTER A NEW USER    /// REGISTER A NEW USER    /// REGISTER A NEW USER
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterUserDTO registerUserDto)
     {
@@ -75,6 +75,7 @@ public class AuthController : ControllerBase
         user.Role = parsedRole;
         user.IsVerified = false;
         user.VerificationCode = verificationCode;
+        user.VerificationCodeExpirity = DateTime.UtcNow.AddMinutes(5); 
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
@@ -125,12 +126,11 @@ public class AuthController : ControllerBase
             Data = user
         });
     }
-    /// LOG IN
+    /// LOG IN   /// LOG IN   /// LOG IN   /// LOG IN   /// LOG IN   /// LOG IN   /// LOG IN   /// LOG IN
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] UserLogInDTO loginDto)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
-
         if (user == null || user.Password != loginDto.Password)
         {
             return Unauthorized(new ApiResponse<string>
@@ -140,7 +140,6 @@ public class AuthController : ControllerBase
                 Data = null
             });
         }
-
         if (!user.IsVerified)
         {
             return StatusCode(403, new ApiResponse<string>
@@ -151,34 +150,13 @@ public class AuthController : ControllerBase
             });
         }
 
-
-        var jwtUser = new JWTUserModel
-        {
-            Id = user.Id,
-            Name = user.Name,
-            Email = user.Email,
-            Password = user.Password,
-            Biography = user.Biography,
-            ProfilePictureUrl = user.ProfilePictureUrl,
-            Role = user.Role,
-            IsVerified = user.IsVerified,
-            VerificationCode = user.VerificationCode
-        };
+        var jwtUser = _mapper.Map<JWTUserModel>(user);
 
         var jwtService = HttpContext.RequestServices.GetRequiredService<IJWTService>();
         var token = jwtService.GetUserToken(jwtUser);
 
-        var responseDto = new LoginResponseDTO
-        {
-            Token = token.Token,
-            Id = user.Id,
-            Name = user.Name,
-            Email = user.Email,
-            Biography = user.Biography,
-            ProfilePictureUrl = user.ProfilePictureUrl,
-            Role = user.Role.ToString(),
-            IsVerified = user.IsVerified
-        };
+        var responseDto = _mapper.Map<LoginResponseDTO>(user);
+        responseDto.Token = token.Token; 
 
         return Ok(new ApiResponse<LoginResponseDTO>
         {
@@ -188,18 +166,27 @@ public class AuthController : ControllerBase
         });
     }
 
-    /// VERIFY EMAIL
+    /// VERIFY EMAIL    /// VERIFY EMAIL    /// VERIFY EMAIL  /// VERIFY EMAIL    /// VERIFY EMAIL    /// VERIFY EMAIL
     [HttpPost("verify")]
     public async Task<IActionResult> VerifyUser([FromBody] VerifyUserDTO verifyDto)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == verifyDto.Email);
-
         if (user == null)
         {
             return NotFound(new ApiResponse<string>
             {
                 StatusCode = 404,
                 Message = "User not found.",
+                Data = null
+            });
+        }
+
+        if (!user.VerificationCodeExpirity.HasValue || user.VerificationCodeExpirity.Value < DateTime.UtcNow)
+        {
+            return BadRequest(new ApiResponse<string>
+            {
+                StatusCode = 400,
+                Message = "Verification code has expired.",
                 Data = null
             });
         }
@@ -226,6 +213,7 @@ public class AuthController : ControllerBase
 
         user.IsVerified = true;
         user.VerificationCode = null;
+        user.VerificationCodeExpirity = null;
 
         _context.Users.Update(user);
         await _context.SaveChangesAsync();
@@ -237,8 +225,4 @@ public class AuthController : ControllerBase
             Data = null
         });
     }
-
-
-
-
 }
