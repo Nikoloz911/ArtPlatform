@@ -180,7 +180,6 @@ public class AuthController : ControllerBase
                 Data = null
             });
         }
-
         if (!user.VerificationCodeExpirity.HasValue || user.VerificationCodeExpirity.Value < DateTime.UtcNow)
         {
             return BadRequest(new ApiResponse<string>
@@ -190,7 +189,6 @@ public class AuthController : ControllerBase
                 Data = null
             });
         }
-
         if (user.IsVerified)
         {
             return BadRequest(new ApiResponse<string>
@@ -200,7 +198,6 @@ public class AuthController : ControllerBase
                 Data = null
             });
         }
-
         if (user.VerificationCode != verifyDto.VerificationCode)
         {
             return BadRequest(new ApiResponse<string>
@@ -217,6 +214,29 @@ public class AuthController : ControllerBase
 
         _context.Users.Update(user);
         await _context.SaveChangesAsync();
+
+        var userUpdatedEvent = _mapper.Map<UserVerifiedEvent>(user);
+
+        var factory = new ConnectionFactory { HostName = "localhost" };
+        using var connection = factory.CreateConnection();
+        using var channel = connection.CreateModel();
+
+        channel.QueueDeclare(
+            queue: "user_updated",
+            durable: false,
+            exclusive: false,
+            autoDelete: false,
+            arguments: null
+        );
+
+        var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(userUpdatedEvent));
+
+        channel.BasicPublish(
+            exchange: "",
+            routingKey: "user_updated",
+            basicProperties: null,
+            body: body
+        );
 
         return Ok(new ApiResponse<string>
         {

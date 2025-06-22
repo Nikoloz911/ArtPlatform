@@ -14,5 +14,6 @@ public class UserMappingProfile : Profile
         CreateMap<User, JWTUserModel>();
         CreateMap<User, LoginResponseDTO>()
             .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()));
+        CreateMap<User, UserVerifiedEvent>();
     }
 }

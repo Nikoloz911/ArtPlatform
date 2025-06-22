@@ -22,19 +22,15 @@ namespace UserService.RabbitMQ
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
-            _channel.QueueDeclare(
-                queue: "user_created",
-                durable: false,
-                exclusive: false,
-                autoDelete: false,
-                arguments: null
-            );
+            // Declare both queues
+            _channel.QueueDeclare(queue: "user_created", durable: false, exclusive: false, autoDelete: false, arguments: null);
+            _channel.QueueDeclare(queue: "user_updated", durable: false, exclusive: false, autoDelete: false, arguments: null);
         }
 
         public void StartConsumer()
         {
-            var consumer = new EventingBasicConsumer(_channel);
-            consumer.Received += async (model, ea) =>
+            var createdConsumer = new EventingBasicConsumer(_channel);
+            createdConsumer.Received += async (model, ea) =>
             {
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<DataContext>();
@@ -63,11 +59,34 @@ namespace UserService.RabbitMQ
                 }
             };
 
-            _channel.BasicConsume(
-                queue: "user_created",
-                autoAck: true,
-                consumer: consumer
-            );
+            _channel.BasicConsume(queue: "user_created", autoAck: true, consumer: createdConsumer);
+
+            var updatedConsumer = new EventingBasicConsumer(_channel);
+            updatedConsumer.Received += async (model, ea) =>
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+
+                var userUpdated = JsonSerializer.Deserialize<UserVerifiedEvent>(message);
+                if (userUpdated != null)
+                {
+                    var user = context.Users.FirstOrDefault(u => u.Id == userUpdated.Id);
+                    if (user != null)
+                    {
+                        user.IsVerified = userUpdated.IsVerified;
+                        user.VerificationCode = userUpdated.VerificationCode;
+                        user.VerificationCodeExpirity = userUpdated.VerificationCodeExpirity;
+
+                        context.Users.Update(user);
+                        await context.SaveChangesAsync();
+                    }
+                }
+            };
+
+            _channel.BasicConsume(queue: "user_updated", autoAck: true, consumer: updatedConsumer);
         }
     }
 }
