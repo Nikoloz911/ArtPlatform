@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using Contracts.Core;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UserService.Data;
-using Contracts.Core;
+using UserService.DTOs;
 using UserService.Models;
 namespace UserService.Controllers;
 
@@ -11,9 +13,11 @@ namespace UserService.Controllers;
 public class UserController : ControllerBase
 {
     private readonly DataContext _context;
-    public UserController(DataContext context)
+    private readonly IMapper _mapper;
+    public UserController(DataContext context, IMapper mapper)
     {
         _context = context;
+        _mapper = mapper;
     }
 
     /// GET ALL USERS   /// GET ALL USERS   /// GET ALL USERS   /// GET ALL USERS   /// GET ALL USERS
@@ -63,9 +67,54 @@ public class UserController : ControllerBase
         };
         return Ok(response);
     }
+    /// UPDATE USER BY ID   /// UPDATE USER BY ID   /// UPDATE USER BY ID   /// UPDATE USER BY ID 
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDTO updateDto)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+        {
+            return NotFound(new ApiResponse<User>
+            {
+                StatusCode = 404,
+                Message = $"User with ID {id} not found",
+                Data = null
+            });
+        }
 
-    //    PUT /api/users/{id
-    //} - მომხმარებლის ინფორმაციის განახლება
+        _mapper.Map(updateDto, user); 
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
+        return Ok(new ApiResponse<User>
+        {
+            StatusCode = 200,
+            Message = "User updated successfully",
+            Data = user
+        });
+    }
+    /// DELETE USER BY ID   /// DELETE USER BY ID   /// DELETE USER BY ID   /// DELETE USER BY ID
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteUser(int id)
+    {
+        var user = await _context.Users.FindAsync(id);
 
+        if (user == null)
+        {
+            return NotFound(new ApiResponse<User>
+            {
+                StatusCode = 404,
+                Message = $"User with ID {id} not found",
+                Data = null
+            });
+        }
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync();
+        return Ok(new ApiResponse<User>
+        {
+            StatusCode = 200,
+            Message = "User deleted successfully",
+            Data = user
+        });
+    }
 
 }

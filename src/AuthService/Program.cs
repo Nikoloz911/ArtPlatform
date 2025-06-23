@@ -3,6 +3,7 @@
 using AuthService.Data;
 using AuthService.Helper;
 using AuthService.Validators;
+using AuthService.RabbitMQ;
 using CommonUtils.JWT;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -37,6 +38,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddScoped<IJWTService, JWTService>();
 
+
+var rabbitMQConsumer = new AuthServiceRabbitMQ(app.Services);
+rabbitMQConsumer.StartConsumer();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -44,6 +49,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseHttpsRedirection();
