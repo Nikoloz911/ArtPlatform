@@ -38,11 +38,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddScoped<IJWTService, JWTService>();
 
+var app = builder.Build();
 
 var rabbitMQConsumer = new AuthServiceRabbitMQ(app.Services);
 rabbitMQConsumer.StartConsumer();
-
-var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {

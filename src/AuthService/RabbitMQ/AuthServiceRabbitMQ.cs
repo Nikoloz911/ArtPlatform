@@ -1,57 +1,81 @@
 ﻿using RabbitMQ.Client;
-using AuthService.Data;
-using AuthService.Models;
+using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
+using AuthService.Data;
+using AuthService.Models;
 using Contracts.DTO;
-using RabbitMQ.Client.Events;
+using Microsoft.EntityFrameworkCore;
 
-namespace AuthService.RabbitMQ;
-public class AuthServiceRabbitMQ
+namespace AuthService.RabbitMQ
 {
-    private readonly IServiceProvider _serviceProvider;
-    private IConnection _connection;
-    private IModel _channel;
-
-    public AuthServiceRabbitMQ(IServiceProvider serviceProvider)
+    public class AuthServiceRabbitMQ
     {
-        _serviceProvider = serviceProvider;
-        var factory = new ConnectionFactory() { HostName = "localhost" };
-        _connection = factory.CreateConnection();
-        _channel = _connection.CreateModel();
+        private readonly IServiceProvider _serviceProvider;
+        private readonly IConnection _connection;
+        private readonly IModel _channel;
 
-        _channel.QueueDeclare(queue: "user_update_event", durable: false, exclusive: false, autoDelete: false, arguments: null);
-    }
-
-    public void StartConsumer()
-    {
-        var consumer = new EventingBasicConsumer(_channel);
-        consumer.Received += async (model, ea) =>
+        public AuthServiceRabbitMQ(IServiceProvider serviceProvider)
         {
-            using var scope = _serviceProvider.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+            _serviceProvider = serviceProvider;
 
-            var body = ea.Body.ToArray();
-            var json = Encoding.UTF8.GetString(body);
-            var updateEvent = JsonSerializer.Deserialize<UpdateUserEvent>(json);
+            var factory = new ConnectionFactory() { HostName = "localhost" };
+            _connection = factory.CreateConnection();
+            _channel = _connection.CreateModel();
 
-            if (updateEvent != null)
+            _channel.QueueDeclare(queue: "user_updated_by_id", durable: false, exclusive: false, autoDelete: false, arguments: null);
+            _channel.QueueDeclare(queue: "user_deleted_by_id", durable: false, exclusive: false, autoDelete: false, arguments: null);
+        }
+        public void StartConsumer()
+        {
+            var updatedConsumer = new EventingBasicConsumer(_channel);
+
+            updatedConsumer.Received += async (model, ea) =>
             {
-                var user = context.Users.FirstOrDefault(u => u.Email == updateEvent.Email);
-                if (user != null)
-                {
-                    user.Name = updateEvent.Name;
-                    user.Password = updateEvent.Password;
-                    user.Biography = updateEvent.Biography;
-                    user.ProfilePictureUrl = updateEvent.ProfilePictureUrl;
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
 
-                    context.Users.Update(user);
-                    await context.SaveChangesAsync();
-                }
-            }
-        };
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
 
-        _channel.BasicConsume(queue: "user_update_event", autoAck: true, consumer: consumer);
+                var userUpdated = JsonSerializer.Deserialize<UpdateUserEvent>(message);
+                if (userUpdated == null) return;
+
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userUpdated.Id);
+                if (user == null) return;
+
+                user.Name = userUpdated.Name;
+                user.Password = userUpdated.Password;
+                user.Biography = userUpdated.Biography;
+                user.ProfilePictureUrl = userUpdated.ProfilePictureUrl;
+
+                context.Users.Update(user);
+                await context.SaveChangesAsync();
+            };
+
+            _channel.BasicConsume(queue: "user_updated_by_id", autoAck: true, consumer: updatedConsumer);
+
+            var deletedConsumer = new EventingBasicConsumer(_channel);
+
+            deletedConsumer.Received += async (model, ea) =>
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+
+                var userDeleted = JsonSerializer.Deserialize<UserDeletedEvent>(message);
+                if (userDeleted == null) return;
+
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userDeleted.Id);
+                if (user == null) return;
+
+                context.Users.Remove(user);
+                await context.SaveChangesAsync();
+            };
+
+            _channel.BasicConsume(queue: "user_deleted_by_id", autoAck: true, consumer: deletedConsumer);
+        }
     }
 }
-

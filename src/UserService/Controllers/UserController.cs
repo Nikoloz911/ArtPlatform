@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
 using Contracts.Core;
+using Contracts.DTO;
 using Microsoft.AspNetCore.Http;
+using UserService.RabbitMQ;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UserService.Data;
@@ -74,23 +76,26 @@ public class UserController : ControllerBase
         var user = await _context.Users.FindAsync(id);
         if (user == null)
         {
-            return NotFound(new ApiResponse<User>
-            {
-                StatusCode = 404,
-                Message = $"User with ID {id} not found",
-                Data = null
-            });
+            return NotFound();
         }
 
-        _mapper.Map(updateDto, user); 
+        _mapper.Map(updateDto, user);
         _context.Users.Update(user);
         await _context.SaveChangesAsync();
-        return Ok(new ApiResponse<User>
+
+        // Publish the update event
+        var publisher = new RabbitMQPublisher();
+        publisher.PublishUserUpdated(new UpdateUserEvent
         {
-            StatusCode = 200,
-            Message = "User updated successfully",
-            Data = user
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            Password = user.Password,
+            Biography = user.Biography,
+            ProfilePictureUrl = user.ProfilePictureUrl
         });
+
+        return Ok(user);
     }
     /// DELETE USER BY ID   /// DELETE USER BY ID   /// DELETE USER BY ID   /// DELETE USER BY ID
     [HttpDelete("{id}")]
@@ -109,6 +114,9 @@ public class UserController : ControllerBase
         }
         _context.Users.Remove(user);
         await _context.SaveChangesAsync();
+        var publisher = new RabbitMQPublisher();
+        publisher.PublishUserDeleted(new UserDeletedEvent { Id = id });
+
         return Ok(new ApiResponse<User>
         {
             StatusCode = 200,
@@ -116,5 +124,4 @@ public class UserController : ControllerBase
             Data = user
         });
     }
-
 }
