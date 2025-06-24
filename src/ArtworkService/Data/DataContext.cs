@@ -1,9 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using PortfolioService.Models;
-namespace PortfolioService.Data;
+using ArtworkService.Models;
+
+namespace ArtworkService.Data;
 public class DataContext : DbContext
 {
-    public DbSet<Portfolio> Portfolios { get; set; }
+    public DbSet<Artwork> Artwork { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         var configuration = new ConfigurationBuilder()
