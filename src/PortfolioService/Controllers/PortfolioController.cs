@@ -8,6 +8,7 @@ using PortfolioService.Data;
 using PortfolioService.DTOs;
 using FluentValidation.Results;
 using PortfolioService.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace PortfolioService.Controllers;
 
@@ -79,6 +80,7 @@ public class PortfolioController : ControllerBase
 
     /// ADD PORTFOLIO   /// ADD PORTFOLIO   /// ADD PORTFOLIO   /// ADD PORTFOLIO
     [HttpPost("")]
+    [Authorize(Policy = "ArtistOnly")]
     public async Task<IActionResult> CreatePortfolio([FromBody] AddPortfolioDTO dto)
     {
         ValidationResult validationResult = await _validator.ValidateAsync(dto);
@@ -108,6 +110,7 @@ public class PortfolioController : ControllerBase
 
     /// UPDATE PORTFOLIO   /// UPDATE PORTFOLIO   /// UPDATE PORTFOLIO   /// UPDATE PORTFOLIO  
     [HttpPut("{id}")]
+    [Authorize(Policy = "OwnerOnly")]
     public async Task<IActionResult> UpdatePortfolio(int id, [FromBody] UpdatePortfolioDTO dto)
     {
         var validationResult = await _updateValidator.ValidateAsync(dto);
@@ -143,6 +146,7 @@ public class PortfolioController : ControllerBase
     }
     /// DELETE PORTFOLIO   /// DELETE PORTFOLIO   /// DELETE PORTFOLIO   /// DELETE PORTFOLIO
     [HttpDelete("{id}")]
+    [Authorize(Policy = "OwnerOrAdmin")]
     public async Task<IActionResult> DeletePortfolio(int id)
     {
         var portfolio = await _context.Portfolios.FindAsync(id);

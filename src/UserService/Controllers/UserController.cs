@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using UserService.Data;
 using UserService.DTOs;
 using UserService.Models;
+using Microsoft.AspNetCore.Authorization;
 namespace UserService.Controllers;
 
 [Route("api/users")]
@@ -24,6 +25,7 @@ public class UserController : ControllerBase
 
     /// GET ALL USERS   /// GET ALL USERS   /// GET ALL USERS   /// GET ALL USERS   /// GET ALL USERS
     [HttpGet("")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await _context.Users.ToListAsync();
@@ -99,6 +101,7 @@ public class UserController : ControllerBase
     }
     /// DELETE USER BY ID   /// DELETE USER BY ID   /// DELETE USER BY ID   /// DELETE USER BY ID
     [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> DeleteUser(int id)
     {
         var user = await _context.Users.FindAsync(id);

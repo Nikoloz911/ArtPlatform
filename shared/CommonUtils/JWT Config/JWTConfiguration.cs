@@ -34,6 +34,7 @@ public static class JwtServiceExtensions
             options.AddPolicy("AdminOrOwner", policy => policy.RequireRole("Admin", "Owner"));
             options.AddPolicy("AdminOrArtist", policy => policy.RequireRole("Admin", "Artist"));
             options.AddPolicy("ArtistOrCritic", policy => policy.RequireRole("Artist", "Critic"));
+            options.AddPolicy("OwnerOrAdmin", policy => policy.RequireRole("Owner", "Admin"));
         });
         return services;
     }
