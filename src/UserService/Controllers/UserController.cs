@@ -25,7 +25,7 @@ public class UserController : ControllerBase
 
     /// GET ALL USERS   /// GET ALL USERS   /// GET ALL USERS   /// GET ALL USERS   /// GET ALL USERS
     [HttpGet("")]
-    [Authorize(Policy = "AdminOnly")]
+    [Authorize(Roles = "AdminOnly")]
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await _context.Users.ToListAsync();
