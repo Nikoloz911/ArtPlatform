@@ -9,5 +9,8 @@ public class ArtworkMappingProfile : Profile
     {
         CreateMap<AddArtworkDTO, Artwork>();
         CreateMap<Artwork, ArtworkResponseDTO>();
+        CreateMap<Artwork, UpdateArtworkResponseDTO>();
+        CreateMap<UpdateArtworkDTO, Artwork>()
+            .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
     }
 }

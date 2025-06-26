@@ -17,6 +17,7 @@ builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 builder.Services.AddDbContext<DataContext>();
 builder.Services.AddAutoMapper(typeof(ArtworkMappingProfile));
 builder.Services.AddScoped<IValidator<AddArtworkDTO>, AddArtworkValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<UpdateArtworkValidator>();
 
 var jwtKey = builder.Configuration["JWT:Key"];
 var jwtIssuer = builder.Configuration["JWT:Issuer"];
