@@ -5,6 +5,7 @@ using CategoryService.Models;
 using CategoryService.Validators;
 using Contracts.Core;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -117,7 +118,8 @@ public class CategoryController : ControllerBase
     }
 
     /// ADD NEW CATEGORY   /// ADD NEW CATEGORY   /// ADD NEW CATEGORY   /// ADD NEW CATEGORY
-    [HttpPost("")] // (Admin)
+    [HttpPost("")]
+    [Authorize(Policy = "AdminOnly")] 
     public async Task<IActionResult> AddCategory([FromBody] AddCategoryDTO dto)
     {
         var validationResult = await _addCategoryValidator.ValidateAsync(dto);
@@ -152,7 +154,8 @@ public class CategoryController : ControllerBase
         );
     }
     /// UPDATE CATEGORY BY ID   /// UPDATE CATEGORY BY ID   /// UPDATE CATEGORY BY ID   /// UPDATE CATEGORY BY ID
-    [HttpPut("{id}")] // (Admin)
+    [HttpPut("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpdateCategoryDTO dto)
     {
         var validationResult = await _updateCategoryValidator.ValidateAsync(dto);

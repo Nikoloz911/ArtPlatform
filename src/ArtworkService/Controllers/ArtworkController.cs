@@ -4,6 +4,7 @@ using ArtworkService.Models;
 using AutoMapper;
 using Contracts.Core;
 using FluentValidation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -142,7 +143,8 @@ public class ArtworkController : ControllerBase
         );
     }
     /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK
-    [HttpPut("{id}")] // owner
+    [HttpPut("{id}")]
+    [Authorize(Policy = "OwnerOnly")]
     public async Task<IActionResult> UpdateArtwork(int id, [FromBody] UpdateArtworkDTO dto)
     {
         var validationResult = await _updateValidator.ValidateAsync(dto);
@@ -182,7 +184,8 @@ public class ArtworkController : ControllerBase
         });
     }
     /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK
-    [HttpDelete("{id}")] // (Owner / Admin)
+    [HttpDelete("{id}")]
+    [Authorize(Policy = "AdminOrOwner")]
     public async Task<IActionResult> DeleteArtwork(int id)
     {
         var artwork = await _context.Artwork.FindAsync(id);
