@@ -1,16 +1,16 @@
 /// USER SERVICE
 /// https://localhost:7086
 
+using CommonUtils.JWT;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
-using CommonUtils.JWT;
 using UserService.Data;
 using UserService.Helpers;
 using UserService.RabbitMQ;
 using UserService.Validators;
-using System.IdentityModel.Tokens.Jwt;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
@@ -45,33 +45,6 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.Zero
     };
-
-    options.Events = new JwtBearerEvents
-    {
-        OnMessageReceived = context =>
-        {
-            // Let the default extraction happen, but log the actual token only
-            var authHeader = context.Request.Headers["Authorization"].ToString();
-
-            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
-            {
-                var token = authHeader.Substring("Bearer ".Length).Trim();
-                Console.WriteLine($"Received token (without Bearer prefix): {token}");
-            }
-            else
-            {
-                Console.WriteLine("No Bearer token found in Authorization header.");
-            }
-
-            // Do NOT set context.Token manually here, to avoid breaking default behavior.
-            return Task.CompletedTask;
-        },
-        OnAuthenticationFailed = context =>
-        {
-            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
-            return Task.CompletedTask;
-        }
-    };
 });
 
 builder.Services.AddAuthorization(options =>
@@ -100,11 +73,7 @@ var rabbitMQConsumer = new UserServiceRabbitMQ(app.Services);
 rabbitMQConsumer.StartConsumer();
 
 app.UseHttpsRedirection();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();
-
