@@ -1,4 +1,4 @@
-﻿    using System.Net;
+﻿using System.Net;
 using System.Net.Mail;
 namespace CommonUtils.SMTP;
 public class SMTP_Registration
@@ -58,7 +58,6 @@ public class SMTP_Registration
 
         /// HTML CONTENT OF EMAIL  /// HTML CONTENT OF EMAIL  /// HTML CONTENT OF EMAIL
         /// HTML CONTENT OF EMAIL  /// HTML CONTENT OF EMAIL  /// HTML CONTENT OF EMAIL
-
         MailMessage mail = new MailMessage();
         mail.From = new MailAddress(senderEmail);
         mail.To.Add(ToAddress);
@@ -72,8 +71,6 @@ public class SMTP_Registration
             EnableSsl = true,
             Credentials = new NetworkCredential(senderEmail, appPassword),
         };
-
         smtpClient.Send(mail);
     }
-
 }

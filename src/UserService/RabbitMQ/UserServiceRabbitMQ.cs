@@ -22,7 +22,6 @@ namespace UserService.RabbitMQ
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
-            // Declare both queues
             _channel.QueueDeclare(queue: "user_created", durable: false, exclusive: false, autoDelete: false, arguments: null);
             _channel.QueueDeclare(queue: "user_updated", durable: false, exclusive: false, autoDelete: false, arguments: null);
         }
