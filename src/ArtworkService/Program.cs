@@ -1,5 +1,6 @@
 /// ARTWORK SERVICE 
 /// https://localhost:7147
+/// RABBIT MQ
 
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
