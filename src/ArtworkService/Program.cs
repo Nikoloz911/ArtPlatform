@@ -2,14 +2,15 @@
 /// https://localhost:7147
 /// RABBIT MQ
 
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using FluentValidation;
 using ArtworkService.Data;
 using ArtworkService.DTOs;
 using ArtworkService.Helpers;
+using ArtworkService.RabbitMQ;
 using ArtworkService.Validators;
+using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,6 +56,9 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+var rabbitMQConsumer = new ArtworkServiceRabbitMQ();
+rabbitMQConsumer.StartConsumer();
 
 if (app.Environment.IsDevelopment())
 {
