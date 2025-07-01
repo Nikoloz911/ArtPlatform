@@ -16,7 +16,6 @@ namespace ArtworkService.RabbitMQ
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
-            // Declare fanout exchanges
             _channel.ExchangeDeclare("artwork_exchange", ExchangeType.Fanout, durable: true);
             _channel.ExchangeDeclare("artwork_update_exchange", ExchangeType.Fanout, durable: true);
             _channel.ExchangeDeclare("artwork_delete_exchange", ExchangeType.Fanout, durable: true);

@@ -4,6 +4,7 @@
 using CategoryService.Data;
 using CategoryService.DTOs;
 using CategoryService.Helpers;
+using CategoryService.RabbitMQ;
 using CategoryService.Validators;
 using CommonUtils.JWT;
 using FluentValidation;
@@ -22,6 +23,9 @@ builder.Services.AddAutoMapper(typeof(CategoryMappingProfile));
 builder.Services.AddScoped<IValidator<AddCategoryDTO>, AddCategoryValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateCategoryValidator>();
 builder.Services.AddScoped<IJWTService, JWTService>();
+
+builder.Services.AddSingleton<CategoryServiceRabbitMQPublisher>();
+builder.Services.AddSingleton<CategoryServiceRabbitMQ>();
 
 var jwtKey = builder.Configuration["JWT:Key"];
 var jwtIssuer = builder.Configuration["JWT:Issuer"];
@@ -56,6 +60,9 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+var rabbitMQConsumer = app.Services.GetRequiredService<CategoryServiceRabbitMQ>();
+rabbitMQConsumer.StartConsuming();
 
 if (app.Environment.IsDevelopment())
 {

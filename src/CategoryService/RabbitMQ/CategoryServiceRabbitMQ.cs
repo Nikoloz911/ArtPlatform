@@ -46,6 +46,8 @@ namespace CategoryService.RabbitMQ
                 var exists = await context.Artwork.AnyAsync(a => a.Id == createdEvent.Id);
                 if (exists) return;
 
+                await context.Database.ExecuteSqlRawAsync("SET IDENTITY_INSERT Artwork ON");
+
                 var artwork = new Artwork
                 {
                     Id = createdEvent.Id,
@@ -58,6 +60,8 @@ namespace CategoryService.RabbitMQ
 
                 context.Artwork.Add(artwork);
                 await context.SaveChangesAsync();
+
+                await context.Database.ExecuteSqlRawAsync("SET IDENTITY_INSERT Artwork OFF");
             };
 
             _channel.BasicConsume(queue: "category_artwork_created_queue", autoAck: true, consumer: createdConsumer);
