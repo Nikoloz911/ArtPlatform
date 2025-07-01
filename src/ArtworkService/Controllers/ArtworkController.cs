@@ -1,8 +1,10 @@
 ﻿using ArtworkService.Data;
 using ArtworkService.DTOs;
 using ArtworkService.Models;
+using ArtworkService.RabbitMQ;
 using AutoMapper;
 using Contracts.Core;
+using Contracts.DTO;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -104,21 +106,20 @@ public class ArtworkController : ControllerBase
         var validationResult = await _addArtworkValidator.ValidateAsync(dto);
         if (!validationResult.IsValid)
         {
-            return BadRequest(
-                new ApiResponse<object>
+            return BadRequest(new ApiResponse<object>
+            {
+                StatusCode = 400,
+                Message = "Validation failed.",
+                Data = validationResult.Errors.Select(e => new
                 {
-                    StatusCode = 400,
-                    Message = "Validation failed.",
-                    Data = validationResult.Errors.Select(e => new
-                    {
-                        e.PropertyName,
-                        e.ErrorMessage,
-                    }),
-                }
-            );
+                    e.PropertyName,
+                    e.ErrorMessage,
+                }),
+            });
         }
-        var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
-        if (!categoryExists)
+
+        var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == dto.CategoryId);
+        if (category == null)
         {
             return NotFound(new ApiResponse<object>
             {
@@ -130,21 +131,34 @@ public class ArtworkController : ControllerBase
 
         var artwork = _mapper.Map<Artwork>(dto);
         artwork.CreationTime = DateTime.UtcNow;
+
         await _context.Artwork.AddAsync(artwork);
         await _context.SaveChangesAsync();
+
+        var publisher = new ArtworkServiceRabbitMQPublisher();
+
+        publisher.PublishArtworkCreatedEvent(new ArtworkCreatedEvent
+        {
+            Id = artwork.Id,
+            Title = artwork.Title,
+            CategoryId = artwork.CategoryId,
+            CategoryName = category.CategoryName,
+            CreationTime = artwork.CreationTime,
+            ImageAdress = artwork.ImageAdress
+        });
+
         var response = _mapper.Map<ArtworkResponseDTO>(artwork);
-        return Ok(
-            new ApiResponse<ArtworkResponseDTO>
-            {
-                StatusCode = 200,
-                Message = "Artwork created successfully.",
-                Data = response,
-            }
-        );
+        return Ok(new ApiResponse<ArtworkResponseDTO>
+        {
+            StatusCode = 200,
+            Message = "Artwork created successfully.",
+            Data = response,
+        });
     }
+
     /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK
     [HttpPut("{id}")]
-    [Authorize(Policy = "OwnerOnly")]
+    //[Authorize(Policy = "OwnerOnly")]
     public async Task<IActionResult> UpdateArtwork(int id, [FromBody] UpdateArtworkDTO dto)
     {
         var validationResult = await _updateValidator.ValidateAsync(dto);
@@ -175,6 +189,15 @@ public class ArtworkController : ControllerBase
 
         _mapper.Map(dto, artwork);
         await _context.SaveChangesAsync();
+
+        var publisher = new ArtworkServiceRabbitMQPublisher();
+        publisher.PublishArtworkUpdatedEvent(new ArtworkUpdatedEvent
+        {
+            Title = artwork.Title,
+            CreationTime = artwork.CreationTime,
+            ImageAdress = artwork.ImageAdress
+        });
+
         var response = _mapper.Map<UpdateArtworkResponseDTO>(artwork);
         return Ok(new ApiResponse<UpdateArtworkResponseDTO>
         {
@@ -183,9 +206,10 @@ public class ArtworkController : ControllerBase
             Data = response
         });
     }
+
     /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK
     [HttpDelete("{id}")]
-    [Authorize(Policy = "AdminOrOwner")]
+    // [Authorize(Policy = "AdminOrOwner")]
     public async Task<IActionResult> DeleteArtwork(int id)
     {
         var artwork = await _context.Artwork.FindAsync(id);
@@ -200,6 +224,18 @@ public class ArtworkController : ControllerBase
         }
         _context.Artwork.Remove(artwork);
         await _context.SaveChangesAsync();
+
+
+        var rabbitMQPublisher = new ArtworkServiceRabbitMQPublisher();
+
+        var deleteEvent = new ArtworkDeletedEvent
+        {
+            Title = artwork.Title,
+            CreationTime = artwork.CreationTime,
+            ImageAdress = artwork.ImageAdress,
+        };
+
+        rabbitMQPublisher.PublishArtworkDeletedEvent(deleteEvent);
         return Ok(new ApiResponse<Artwork>
         {
             StatusCode = 200,
@@ -207,6 +243,7 @@ public class ArtworkController : ControllerBase
             Data = artwork
         });
     }
+
     /// GET ARTWORKS BY CATEGORY    /// GET ARTWORKS BY CATEGORY    /// GET ARTWORKS BY CATEGORY
 
     [HttpGet("category/{categoryId}")]

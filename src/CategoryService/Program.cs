@@ -1,6 +1,5 @@
 /// CATEGORY SERVICE 
 /// https://localhost:7221
-/// RABBIT MQ
 
 using CategoryService.Data;
 using CategoryService.DTOs;

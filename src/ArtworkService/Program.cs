@@ -1,6 +1,5 @@
 /// ARTWORK SERVICE 
 /// https://localhost:7147
-/// RABBIT MQ
 
 using ArtworkService.Data;
 using ArtworkService.DTOs;
