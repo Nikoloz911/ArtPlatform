@@ -25,7 +25,6 @@ builder.Services.AddScoped<IValidator<AddCategoryDTO>, AddCategoryValidator>();
 builder.Services.AddValidatorsFromAssemblyContaining<UpdateCategoryValidator>();
 builder.Services.AddScoped<IJWTService, JWTService>();
 
-// Register RabbitMQ services properly
 builder.Services.AddSingleton<CategoryServiceRabbitMQPublisher>();
 builder.Services.AddSingleton<CategoryServiceRabbitMQ>();
 
@@ -63,17 +62,8 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
-// Start RabbitMQ consumer after building the app
-try
-{
-    var rabbitMQConsumer = app.Services.GetRequiredService<CategoryServiceRabbitMQ>();
-    rabbitMQConsumer.StartConsumer();
-    Console.WriteLine("RabbitMQ consumer started successfully");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Failed to start RabbitMQ consumer: {ex.Message}");
-}
+var rabbitMQConsumer = app.Services.GetRequiredService<CategoryServiceRabbitMQ>();
+rabbitMQConsumer.StartConsumer();
 
 if (app.Environment.IsDevelopment())
 {
@@ -85,6 +75,4 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseHttpsRedirection();
 app.MapControllers();
-
-Console.WriteLine("CategoryService is running on https://localhost:7221");
 app.Run();

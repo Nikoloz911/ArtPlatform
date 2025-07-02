@@ -17,7 +17,6 @@ namespace ArtworkService.RabbitMQ
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
-            // Declare queues - these should match the consumer queues exactly
             _channel.QueueDeclare("artwork_created_by_id", false, false, false, null);
             _channel.QueueDeclare("artwork_updated_by_id", false, false, false, null);
             _channel.QueueDeclare("artwork_deleted_by_id", false, false, false, null);
@@ -25,47 +24,20 @@ namespace ArtworkService.RabbitMQ
 
         public void PublishArtworkCreated(ArtworkCreatedEvent createdEvent)
         {
-            try
-            {
-                var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(createdEvent));
-                _channel.BasicPublish(exchange: "", routingKey: "artwork_created_by_id", basicProperties: null, body: body);
-                Console.WriteLine($"Published ArtworkCreated event for ID: {createdEvent.Id}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error publishing ArtworkCreated event: {ex.Message}");
-                throw;
-            }
+            var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(createdEvent));
+            _channel.BasicPublish(exchange: "", routingKey: "artwork_created_by_id", basicProperties: null, body: body);
         }
 
         public void PublishArtworkUpdated(ArtworkUpdatedEvent updatedEvent)
         {
-            try
-            {
-                var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(updatedEvent));
-                _channel.BasicPublish(exchange: "", routingKey: "artwork_updated_by_id", basicProperties: null, body: body);
-                Console.WriteLine($"Published ArtworkUpdated event for ID: {updatedEvent.Id}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error publishing ArtworkUpdated event: {ex.Message}");
-                throw;
-            }
+            var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(updatedEvent));
+            _channel.BasicPublish(exchange: "", routingKey: "artwork_updated_by_id", basicProperties: null, body: body);
         }
 
         public void PublishArtworkDeleted(ArtworkDeletedEvent deletedEvent)
         {
-            try
-            {
-                var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(deletedEvent));
-                _channel.BasicPublish(exchange: "", routingKey: "artwork_deleted_by_id", basicProperties: null, body: body);
-                Console.WriteLine($"Published ArtworkDeleted event for ID: {deletedEvent.Id}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error publishing ArtworkDeleted event: {ex.Message}");
-                throw;
-            }
+            var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(deletedEvent));
+            _channel.BasicPublish(exchange: "", routingKey: "artwork_deleted_by_id", basicProperties: null, body: body);
         }
 
         public void Dispose()

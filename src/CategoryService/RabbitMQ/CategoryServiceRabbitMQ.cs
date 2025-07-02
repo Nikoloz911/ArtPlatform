@@ -23,7 +23,6 @@ namespace CategoryService.RabbitMQ
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
-            // Declare the same queues as the publisher
             _channel.QueueDeclare("artwork_created_by_id", false, false, false, null);
             _channel.QueueDeclare("artwork_updated_by_id", false, false, false, null);
             _channel.QueueDeclare("artwork_deleted_by_id", false, false, false, null);
@@ -34,7 +33,6 @@ namespace CategoryService.RabbitMQ
             StartCreateArtworkConsumer();
             StartUpdateArtworkConsumer();
             StartDeleteArtworkConsumer();
-            Console.WriteLine("RabbitMQ consumers started for CategoryService");
         }
 
         private void StartCreateArtworkConsumer()
@@ -42,63 +40,35 @@ namespace CategoryService.RabbitMQ
             var consumer = new EventingBasicConsumer(_channel);
             consumer.Received += async (model, ea) =>
             {
-                try
+                var message = Encoding.UTF8.GetString(ea.Body.ToArray());
+                var createdEvent = JsonSerializer.Deserialize<ArtworkCreatedEvent>(message);
+                if (createdEvent == null) return;
+
+                using var scope = _serviceProvider.CreateScope();
+                using var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                var category = await context.Categories.FirstOrDefaultAsync(c => c.Id == createdEvent.CategoryId);
+                if (category == null)
                 {
-                    var message = Encoding.UTF8.GetString(ea.Body.ToArray());
-                    Console.WriteLine($"Received artwork created message: {message}");
-
-                    var createdEvent = JsonSerializer.Deserialize<ArtworkCreatedEvent>(message);
-                    if (createdEvent == null)
+                    category = new Category
                     {
-                        Console.WriteLine("Failed to deserialize ArtworkCreatedEvent");
-                        return;
-                    }
-
-                    using var scope = _serviceProvider.CreateScope();
-                    using var context = scope.ServiceProvider.GetRequiredService<DataContext>();
-
-                    // Check if category exists in CategoryService database
-                    var category = await context.Categories.FirstOrDefaultAsync(c => c.Id == createdEvent.CategoryId);
-                    if (category == null)
-                    {
-                        // Create the category if it doesn't exist
-                        category = new Category
-                        {
-                            Id = createdEvent.CategoryId,
-                            CategoryName = createdEvent.CategoryName
-                        };
-                        context.Categories.Add(category);
-                        Console.WriteLine($"Created new category '{createdEvent.CategoryName}' with ID {createdEvent.CategoryId}");
-                    }
-
-                    // Check if artwork already exists in CategoryService database
-                    var existingArtwork = await context.Artwork.FirstOrDefaultAsync(a => a.Id == createdEvent.Id);
-                    if (existingArtwork == null)
-                    {
-                        // Create the artwork in CategoryService database
-                        var artwork = new Artwork
-                        {
-                            Id = createdEvent.Id,
-                            Title = createdEvent.Title,
-                            CategoryId = createdEvent.CategoryId,
-                            CreationTime = createdEvent.CreationTime,
-                            ImageAdress = createdEvent.ImageAdress
-                        };
-
-                        context.Artwork.Add(artwork);
-                        await context.SaveChangesAsync();
-
-                        Console.WriteLine($"Created artwork '{createdEvent.Title}' (ID: {createdEvent.Id}) in CategoryService database");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Artwork '{createdEvent.Title}' (ID: {createdEvent.Id}) already exists in CategoryService database");
-                    }
+                        CategoryName = createdEvent.CategoryName
+                    };
+                    context.Categories.Add(category);
+                    await context.SaveChangesAsync();
                 }
-                catch (Exception ex)
+
+                var artwork = new Artwork
                 {
-                    Console.WriteLine($"Error processing artwork created event: {ex.Message}");
-                }
+                    Title = createdEvent.Title,
+                    ImageAdress = createdEvent.ImageAdress,
+                    CategoryName = createdEvent.CategoryName,
+                    CategoryId = category.Id,
+                    CreationTime = createdEvent.CreationTime
+                };
+
+                context.Artwork.Add(artwork);
+                await context.SaveChangesAsync();
             };
 
             _channel.BasicConsume("artwork_created_by_id", autoAck: true, consumer);
@@ -109,40 +79,27 @@ namespace CategoryService.RabbitMQ
             var consumer = new EventingBasicConsumer(_channel);
             consumer.Received += async (model, ea) =>
             {
-                try
+                var message = Encoding.UTF8.GetString(ea.Body.ToArray());
+                var updatedEvent = JsonSerializer.Deserialize<ArtworkUpdatedEvent>(message);
+                if (updatedEvent == null) return;
+
+                using var scope = _serviceProvider.CreateScope();
+                using var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                var artwork = await context.Artwork.FirstOrDefaultAsync(a => a.Id == updatedEvent.Id);
+                if (artwork != null)
                 {
-                    var message = Encoding.UTF8.GetString(ea.Body.ToArray());
-                    Console.WriteLine($"Received artwork updated message: {message}");
+                    artwork.Title = updatedEvent.Title;
+                    artwork.CategoryId = updatedEvent.CategoryId;
+                    artwork.ImageAdress = updatedEvent.ImageAdress;
 
-                    var updatedEvent = JsonSerializer.Deserialize<ArtworkUpdatedEvent>(message);
-                    if (updatedEvent == null)
+                    var category = await context.Categories.FirstOrDefaultAsync(c => c.Id == updatedEvent.CategoryId);
+                    if (category != null)
                     {
-                        Console.WriteLine("Failed to deserialize ArtworkUpdatedEvent");
-                        return;
+                        artwork.CategoryName = category.CategoryName;
                     }
 
-                    using var scope = _serviceProvider.CreateScope();
-                    using var context = scope.ServiceProvider.GetRequiredService<DataContext>();
-
-                    // Find and update the artwork in CategoryService database
-                    var artwork = await context.Artwork.FirstOrDefaultAsync(a => a.Id == updatedEvent.Id);
-                    if (artwork != null)
-                    {
-                        artwork.Title = updatedEvent.Title;
-                        artwork.CategoryId = updatedEvent.CategoryId;
-                        artwork.ImageAdress = updatedEvent.ImageAdress;
-
-                        await context.SaveChangesAsync();
-                        Console.WriteLine($"Updated artwork '{updatedEvent.Title}' (ID: {updatedEvent.Id}) in CategoryService database");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Artwork with ID {updatedEvent.Id} not found in CategoryService database");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error processing artwork updated event: {ex.Message}");
+                    await context.SaveChangesAsync();
                 }
             };
 
@@ -154,44 +111,18 @@ namespace CategoryService.RabbitMQ
             var consumer = new EventingBasicConsumer(_channel);
             consumer.Received += async (model, ea) =>
             {
-                try
+                var message = Encoding.UTF8.GetString(ea.Body.ToArray());
+                var deletedEvent = JsonSerializer.Deserialize<ArtworkDeletedEvent>(message);
+                if (deletedEvent == null) return;
+
+                using var scope = _serviceProvider.CreateScope();
+                using var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                var artwork = await context.Artwork.FirstOrDefaultAsync(a => a.Id == deletedEvent.Id);
+                if (artwork != null)
                 {
-                    var message = Encoding.UTF8.GetString(ea.Body.ToArray());
-                    Console.WriteLine($"Received artwork deleted message: {message}");
-
-                    var deletedEvent = JsonSerializer.Deserialize<ArtworkDeletedEvent>(message);
-                    if (deletedEvent == null)
-                    {
-                        Console.WriteLine("Failed to deserialize ArtworkDeletedEvent");
-                        return;
-                    }
-
-                    using var scope = _serviceProvider.CreateScope();
-                    using var context = scope.ServiceProvider.GetRequiredService<DataContext>();
-
-                    // Find and delete the artwork from CategoryService database
-                    var artwork = await context.Artwork.FirstOrDefaultAsync(a => a.Id == deletedEvent.Id);
-                    if (artwork != null)
-                    {
-                        context.Artwork.Remove(artwork);
-                        await context.SaveChangesAsync();
-                        Console.WriteLine($"Deleted artwork '{deletedEvent.Title}' (ID: {deletedEvent.Id}) from CategoryService database");
-
-                        // Check if category has any remaining artworks
-                        var remainingArtworks = await context.Artwork.AnyAsync(a => a.CategoryId == deletedEvent.CategoryId);
-                        if (!remainingArtworks)
-                        {
-                            Console.WriteLine($"Category {deletedEvent.CategoryId} has no remaining artworks");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Artwork with ID {deletedEvent.Id} not found in CategoryService database");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error processing artwork deleted event: {ex.Message}");
+                    context.Artwork.Remove(artwork);
+                    await context.SaveChangesAsync();
                 }
             };
 
