@@ -135,17 +135,26 @@ public class ArtworkController : ControllerBase
         await _context.Artwork.AddAsync(artwork);
         await _context.SaveChangesAsync();
 
-        var publisher = new ArtworkServiceRabbitMQPublisher();
-
-        publisher.PublishArtworkCreatedEvent(new ArtworkCreatedEvent
+        // Use dependency injection instead of creating new instance
+        using var publisher = new ArtworkServiceRabbitMQPublisher();
+        try
         {
-            Id = artwork.Id,
-            Title = artwork.Title,
-            CategoryId = artwork.CategoryId,
-            CategoryName = category.CategoryName,
-            CreationTime = artwork.CreationTime,
-            ImageAdress = artwork.ImageAdress
-        });
+            publisher.PublishArtworkCreated(new ArtworkCreatedEvent
+            {
+                Id = artwork.Id,
+                Title = artwork.Title,
+                CategoryId = artwork.CategoryId,
+                CategoryName = category.CategoryName,
+                CreationTime = artwork.CreationTime,
+                ImageAdress = artwork.ImageAdress
+            });
+            Console.WriteLine($"Successfully published artwork created event for ID: {artwork.Id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to publish artwork created event: {ex.Message}");
+            // Don't fail the request if messaging fails
+        }
 
         var response = _mapper.Map<ArtworkResponseDTO>(artwork);
         return Ok(new ApiResponse<ArtworkResponseDTO>
@@ -190,13 +199,23 @@ public class ArtworkController : ControllerBase
         _mapper.Map(dto, artwork);
         await _context.SaveChangesAsync();
 
-        var publisher = new ArtworkServiceRabbitMQPublisher();
-        publisher.PublishArtworkUpdatedEvent(new ArtworkUpdatedEvent
+        using var publisher = new ArtworkServiceRabbitMQPublisher();
+        try
         {
-            Title = artwork.Title,
-            CreationTime = artwork.CreationTime,
-            ImageAdress = artwork.ImageAdress
-        });
+            publisher.PublishArtworkUpdated(new ArtworkUpdatedEvent
+            {
+                Id = artwork.Id,
+                Title = artwork.Title,
+                CategoryId = artwork.CategoryId,
+                CreationTime = artwork.CreationTime,
+                ImageAdress = artwork.ImageAdress
+            });
+            Console.WriteLine($"Successfully published artwork updated event for ID: {artwork.Id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to publish artwork updated event: {ex.Message}");
+        }
 
         var response = _mapper.Map<UpdateArtworkResponseDTO>(artwork);
         return Ok(new ApiResponse<UpdateArtworkResponseDTO>
@@ -222,20 +241,30 @@ public class ArtworkController : ControllerBase
                 Data = null
             });
         }
+
         _context.Artwork.Remove(artwork);
         await _context.SaveChangesAsync();
 
-
-        var rabbitMQPublisher = new ArtworkServiceRabbitMQPublisher();
-
-        var deleteEvent = new ArtworkDeletedEvent
+        using var publisher = new ArtworkServiceRabbitMQPublisher();
+        try
         {
-            Title = artwork.Title,
-            CreationTime = artwork.CreationTime,
-            ImageAdress = artwork.ImageAdress,
-        };
+            var deleteEvent = new ArtworkDeletedEvent
+            {
+                Id = artwork.Id,
+                Title = artwork.Title,
+                CategoryId = artwork.CategoryId,
+                CreationTime = artwork.CreationTime,
+                ImageAdress = artwork.ImageAdress,
+            };
 
-        rabbitMQPublisher.PublishArtworkDeletedEvent(deleteEvent);
+            publisher.PublishArtworkDeleted(deleteEvent);
+            Console.WriteLine($"Successfully published artwork deleted event for ID: {artwork.Id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to publish artwork deleted event: {ex.Message}");
+        }
+
         return Ok(new ApiResponse<Artwork>
         {
             StatusCode = 200,

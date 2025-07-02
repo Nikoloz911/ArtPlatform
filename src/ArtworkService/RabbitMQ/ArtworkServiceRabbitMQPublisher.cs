@@ -5,10 +5,11 @@ using System.Text.Json;
 
 namespace ArtworkService.RabbitMQ
 {
-    public class ArtworkServiceRabbitMQPublisher
+    public class ArtworkServiceRabbitMQPublisher : IDisposable
     {
         private readonly IConnection _connection;
         private readonly IModel _channel;
+        private bool _disposed = false;
 
         public ArtworkServiceRabbitMQPublisher()
         {
@@ -16,30 +17,67 @@ namespace ArtworkService.RabbitMQ
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
-            _channel.ExchangeDeclare("artwork_exchange", ExchangeType.Fanout, durable: true);
-            _channel.ExchangeDeclare("artwork_update_exchange", ExchangeType.Fanout, durable: true);
-            _channel.ExchangeDeclare("artwork_delete_exchange", ExchangeType.Fanout, durable: true);
+            // Declare queues - these should match the consumer queues exactly
+            _channel.QueueDeclare("artwork_created_by_id", false, false, false, null);
+            _channel.QueueDeclare("artwork_updated_by_id", false, false, false, null);
+            _channel.QueueDeclare("artwork_deleted_by_id", false, false, false, null);
         }
 
-        public void PublishArtworkCreatedEvent(ArtworkCreatedEvent @event)
+        public void PublishArtworkCreated(ArtworkCreatedEvent createdEvent)
         {
-            var message = JsonSerializer.Serialize(@event);
-            var body = Encoding.UTF8.GetBytes(message);
-            _channel.BasicPublish(exchange: "artwork_exchange", routingKey: "", basicProperties: null, body: body);
+            try
+            {
+                var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(createdEvent));
+                _channel.BasicPublish(exchange: "", routingKey: "artwork_created_by_id", basicProperties: null, body: body);
+                Console.WriteLine($"Published ArtworkCreated event for ID: {createdEvent.Id}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error publishing ArtworkCreated event: {ex.Message}");
+                throw;
+            }
         }
 
-        public void PublishArtworkUpdatedEvent(ArtworkUpdatedEvent @event)
+        public void PublishArtworkUpdated(ArtworkUpdatedEvent updatedEvent)
         {
-            var message = JsonSerializer.Serialize(@event);
-            var body = Encoding.UTF8.GetBytes(message);
-            _channel.BasicPublish(exchange: "artwork_update_exchange", routingKey: "", basicProperties: null, body: body);
+            try
+            {
+                var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(updatedEvent));
+                _channel.BasicPublish(exchange: "", routingKey: "artwork_updated_by_id", basicProperties: null, body: body);
+                Console.WriteLine($"Published ArtworkUpdated event for ID: {updatedEvent.Id}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error publishing ArtworkUpdated event: {ex.Message}");
+                throw;
+            }
         }
 
-        public void PublishArtworkDeletedEvent(ArtworkDeletedEvent @event)
+        public void PublishArtworkDeleted(ArtworkDeletedEvent deletedEvent)
         {
-            var message = JsonSerializer.Serialize(@event);
-            var body = Encoding.UTF8.GetBytes(message);
-            _channel.BasicPublish(exchange: "artwork_delete_exchange", routingKey: "", basicProperties: null, body: body);
+            try
+            {
+                var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(deletedEvent));
+                _channel.BasicPublish(exchange: "", routingKey: "artwork_deleted_by_id", basicProperties: null, body: body);
+                Console.WriteLine($"Published ArtworkDeleted event for ID: {deletedEvent.Id}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error publishing ArtworkDeleted event: {ex.Message}");
+                throw;
+            }
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _channel?.Close();
+                _channel?.Dispose();
+                _connection?.Close();
+                _connection?.Dispose();
+                _disposed = true;
+            }
         }
     }
 }
