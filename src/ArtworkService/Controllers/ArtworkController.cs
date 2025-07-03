@@ -171,7 +171,7 @@ public class ArtworkController : ControllerBase
 
     /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK
     [HttpPut("{id}")]
-    //[Authorize(Policy = "OwnerOnly")]
+    [Authorize(Policy = "OwnerOnly")]
     public async Task<IActionResult> UpdateArtwork(int id, [FromBody] UpdateArtworkDTO dto)
     {
         var validationResult = await _updateValidator.ValidateAsync(dto);
@@ -232,7 +232,7 @@ public class ArtworkController : ControllerBase
 
     /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK
     [HttpDelete("{id}")]
-    // [Authorize(Policy = "AdminOrOwner")]
+    [Authorize(Policy = "AdminOrOwner")]
     public async Task<IActionResult> DeleteArtwork(int id)
     {
         var artwork = await _context.Artwork.FindAsync(id);

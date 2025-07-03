@@ -125,7 +125,7 @@ public class CategoryController : ControllerBase
 
     /// ADD NEW CATEGORY   /// ADD NEW CATEGORY   /// ADD NEW CATEGORY   /// ADD NEW CATEGORY
     [HttpPost("")]
-    //[Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> AddCategory([FromBody] AddCategoryDTO dto)
     {
         var validationResult = await _addCategoryValidator.ValidateAsync(dto);
@@ -168,7 +168,7 @@ public class CategoryController : ControllerBase
     }
     /// UPDATE CATEGORY BY ID   /// UPDATE CATEGORY BY ID   /// UPDATE CATEGORY BY ID   /// UPDATE CATEGORY BY ID
     [HttpPut("{id}")]
-   // [Authorize(Policy = "AdminOnly")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpdateCategoryDTO dto)
     {
         var validationResult = await _updateCategoryValidator.ValidateAsync(dto);
