@@ -2,8 +2,10 @@
 using CategoryService.Data;
 using CategoryService.DTOs;
 using CategoryService.Models;
+using CategoryService.RabbitMQ;
 using CategoryService.Validators;
 using Contracts.Core;
+using Contracts.DTO;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -107,6 +109,10 @@ public class CategoryController : ControllerBase
         }
         _context.Categories.Remove(category);
         await _context.SaveChangesAsync();
+
+        var rabbitMQPublisher = new CategoryServiceRabbitMQPublisher();
+        rabbitMQPublisher.PublishCategoryDeleted(id);
+
         return Ok(
             new ApiResponse<string>
             {
@@ -119,39 +125,46 @@ public class CategoryController : ControllerBase
 
     /// ADD NEW CATEGORY   /// ADD NEW CATEGORY   /// ADD NEW CATEGORY   /// ADD NEW CATEGORY
     [HttpPost("")]
-    [Authorize(Policy = "AdminOnly")] 
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> AddCategory([FromBody] AddCategoryDTO dto)
     {
         var validationResult = await _addCategoryValidator.ValidateAsync(dto);
         if (!validationResult.IsValid)
         {
-            return BadRequest(
-                new ApiResponse<object>
+            return BadRequest(new ApiResponse<object>
+            {
+                StatusCode = 400,
+                Message = "Validation failed.",
+                Data = validationResult.Errors.Select(e => new
                 {
-                    StatusCode = 400,
-                    Message = "Validation failed.",
-                    Data = validationResult.Errors.Select(e => new
-                    {
-                        e.PropertyName,
-                        e.ErrorMessage,
-                    }),
-                }
-            );
+                    e.PropertyName,
+                    e.ErrorMessage,
+                }),
+            });
         }
 
         var category = _mapper.Map<Category>(dto);
         category.CreationDate = DateTime.UtcNow;
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
+
+        // RabbitMQ publishing
+        var publisher = new CategoryServiceRabbitMQPublisher();
+        publisher.PublishCategoryCreated(new CategoryCreatedEvent
+        {
+            Id = category.Id,
+            CategoryName = category.CategoryName,
+            Description = category.Description,
+            ImageURL = category.ImageURL
+        });
+
         var responseDto = _mapper.Map<AddCategoryResponseDTO>(category);
-        return Ok(
-            new ApiResponse<AddCategoryResponseDTO>
-            {
-                StatusCode = 200,
-                Message = "Category created successfully.",
-                Data = responseDto,
-            }
-        );
+        return Ok(new ApiResponse<AddCategoryResponseDTO>
+        {
+            StatusCode = 200,
+            Message = "Category created successfully.",
+            Data = responseDto,
+        });
     }
     /// UPDATE CATEGORY BY ID   /// UPDATE CATEGORY BY ID   /// UPDATE CATEGORY BY ID   /// UPDATE CATEGORY BY ID
     [HttpPut("{id}")]
@@ -172,6 +185,7 @@ public class CategoryController : ControllerBase
                 }),
             });
         }
+
         var category = await _context.Categories.FindAsync(id);
         if (category == null)
         {
@@ -182,8 +196,20 @@ public class CategoryController : ControllerBase
                 Data = null,
             });
         }
+
         _mapper.Map(dto, category);
         await _context.SaveChangesAsync();
+
+        // RabbitMQ publishing
+        var publisher = new CategoryServiceRabbitMQPublisher();
+        publisher.PublishCategoryUpdated(new CategoryUpdatedEvent
+        {
+            Id = category.Id,
+            CategoryName = category.CategoryName,
+            Description = category.Description,
+            ImageURL = category.ImageURL
+        });
+
         var responseDto = _mapper.Map<UpdateCategoryResponseDTO>(category);
         return Ok(new ApiResponse<UpdateCategoryResponseDTO>
         {

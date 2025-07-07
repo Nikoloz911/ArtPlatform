@@ -1,8 +1,10 @@
 ﻿using ArtworkService.Data;
 using ArtworkService.DTOs;
 using ArtworkService.Models;
+using ArtworkService.RabbitMQ;
 using AutoMapper;
 using Contracts.Core;
+using Contracts.DTO;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -20,7 +22,12 @@ public class ArtworkController : ControllerBase
     private readonly IValidator<AddArtworkDTO> _addArtworkValidator;
     private readonly IValidator<UpdateArtworkDTO> _updateValidator;
 
-    public ArtworkController(DataContext context, IMapper mapper, IValidator<AddArtworkDTO> addArtworkValidator, IValidator<UpdateArtworkDTO> updateValidator)
+    public ArtworkController(
+        DataContext context,
+        IMapper mapper,
+        IValidator<AddArtworkDTO> addArtworkValidator,
+        IValidator<UpdateArtworkDTO> updateValidator
+    )
     {
         _context = context;
         _mapper = mapper;
@@ -117,21 +124,40 @@ public class ArtworkController : ControllerBase
                 }
             );
         }
-        var categoryExists = await _context.Categories.AnyAsync(c => c.Id == dto.CategoryId);
-        if (!categoryExists)
+
+        var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == dto.CategoryId);
+        if (category == null)
         {
-            return NotFound(new ApiResponse<object>
-            {
-                StatusCode = 404,
-                Message = $"Category with ID {dto.CategoryId} does not exist.",
-                Data = null
-            });
+            return NotFound(
+                new ApiResponse<object>
+                {
+                    StatusCode = 404,
+                    Message = $"Category with ID {dto.CategoryId} does not exist.",
+                    Data = null,
+                }
+            );
         }
 
         var artwork = _mapper.Map<Artwork>(dto);
         artwork.CreationTime = DateTime.UtcNow;
+
         await _context.Artwork.AddAsync(artwork);
         await _context.SaveChangesAsync();
+
+        using var publisher = new ArtworkServiceRabbitMQPublisher();
+
+        publisher.PublishArtworkCreated(
+            new ArtworkCreatedEvent
+            {
+                Id = artwork.Id,
+                Title = artwork.Title,
+                CategoryName = category.CategoryName,
+                CategoryId = artwork.CategoryId,
+                CreationTime = artwork.CreationTime,
+                ImageAdress = artwork.ImageAdress,
+            }
+        );
+
         var response = _mapper.Map<ArtworkResponseDTO>(artwork);
         return Ok(
             new ApiResponse<ArtworkResponseDTO>
@@ -142,6 +168,7 @@ public class ArtworkController : ControllerBase
             }
         );
     }
+
     /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK    /// UPDATE ARTWORK
     [HttpPut("{id}")]
     [Authorize(Policy = "OwnerOnly")]
@@ -150,39 +177,59 @@ public class ArtworkController : ControllerBase
         var validationResult = await _updateValidator.ValidateAsync(dto);
         if (!validationResult.IsValid)
         {
-            return BadRequest(new ApiResponse<object>
-            {
-                StatusCode = 400,
-                Message = "Validation failed.",
-                Data = validationResult.Errors.Select(e => new
+            return BadRequest(
+                new ApiResponse<object>
                 {
-                    e.PropertyName,
-                    e.ErrorMessage
-                })
-            });
+                    StatusCode = 400,
+                    Message = "Validation failed.",
+                    Data = validationResult.Errors.Select(e => new
+                    {
+                        e.PropertyName,
+                        e.ErrorMessage,
+                    }),
+                }
+            );
         }
 
         var artwork = await _context.Artwork.FirstOrDefaultAsync(x => x.Id == id);
         if (artwork == null)
         {
-            return NotFound(new ApiResponse<string>
-            {
-                StatusCode = 404,
-                Message = "Artwork not found.",
-                Data = null
-            });
+            return NotFound(
+                new ApiResponse<string>
+                {
+                    StatusCode = 404,
+                    Message = "Artwork not found.",
+                    Data = null,
+                }
+            );
         }
 
         _mapper.Map(dto, artwork);
         await _context.SaveChangesAsync();
+
+        using var publisher = new ArtworkServiceRabbitMQPublisher();
+
+        publisher.PublishArtworkUpdated(
+            new ArtworkUpdatedEvent
+            {
+                Id = artwork.Id,
+                Title = artwork.Title,
+                CategoryId = artwork.CategoryId,
+                CreationTime = artwork.CreationTime,
+                ImageAdress = artwork.ImageAdress,
+            }
+        );
         var response = _mapper.Map<UpdateArtworkResponseDTO>(artwork);
-        return Ok(new ApiResponse<UpdateArtworkResponseDTO>
-        {
-            StatusCode = 200,
-            Message = "Artwork updated successfully.",
-            Data = response
-        });
+        return Ok(
+            new ApiResponse<UpdateArtworkResponseDTO>
+            {
+                StatusCode = 200,
+                Message = "Artwork updated successfully.",
+                Data = response,
+            }
+        );
     }
+
     /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK    /// DELETE ARTWORK
     [HttpDelete("{id}")]
     [Authorize(Policy = "AdminOrOwner")]
@@ -191,47 +238,67 @@ public class ArtworkController : ControllerBase
         var artwork = await _context.Artwork.FindAsync(id);
         if (artwork == null)
         {
-            return NotFound(new ApiResponse<string>
-            {
-                StatusCode = 404,
-                Message = "Artwork not found.",
-                Data = null
-            });
+            return NotFound(
+                new ApiResponse<string>
+                {
+                    StatusCode = 404,
+                    Message = "Artwork not found.",
+                    Data = null,
+                }
+            );
         }
+
         _context.Artwork.Remove(artwork);
         await _context.SaveChangesAsync();
-        return Ok(new ApiResponse<Artwork>
-        {
-            StatusCode = 200,
-            Message = "Artwork deleted successfully.",
-            Data = artwork
-        });
-    }
-    /// GET ARTWORKS BY CATEGORY    /// GET ARTWORKS BY CATEGORY    /// GET ARTWORKS BY CATEGORY
 
+        using var publisher = new ArtworkServiceRabbitMQPublisher();
+
+        var deleteEvent = new ArtworkDeletedEvent
+        {
+            Id = artwork.Id,
+            Title = artwork.Title,
+            CategoryId = artwork.CategoryId,
+            CreationTime = artwork.CreationTime,
+            ImageAdress = artwork.ImageAdress,
+        };
+
+        publisher.PublishArtworkDeleted(deleteEvent);
+        return Ok(
+            new ApiResponse<Artwork>
+            {
+                StatusCode = 200,
+                Message = "Artwork deleted successfully.",
+                Data = artwork,
+            }
+        );
+    }
+
+    /// GET ARTWORKS BY CATEGORY    /// GET ARTWORKS BY CATEGORY    /// GET ARTWORKS BY CATEGORY
     [HttpGet("category/{categoryId}")]
     public async Task<IActionResult> GetArtworksByCategory(int categoryId)
     {
         var categoryExists = await _context.Categories.AnyAsync(c => c.Id == categoryId);
         if (!categoryExists)
         {
-            return NotFound(new ApiResponse<string>
-            {
-                StatusCode = 404,
-                Message = "Category not found.",
-                Data = null
-            });
+            return NotFound(
+                new ApiResponse<string>
+                {
+                    StatusCode = 404,
+                    Message = "Category not found.",
+                    Data = null,
+                }
+            );
         }
 
-        var artworks = await _context.Artwork
-            .Where(a => a.CategoryId == categoryId)
-            .ToListAsync();
+        var artworks = await _context.Artwork.Where(a => a.CategoryId == categoryId).ToListAsync();
 
-        return Ok(new ApiResponse<List<Artwork>>
-        {
-            StatusCode = 200,
-            Message = "Artworks retrieved successfully.",
-            Data = artworks
-        });
+        return Ok(
+            new ApiResponse<List<Artwork>>
+            {
+                StatusCode = 200,
+                Message = "Artworks retrieved successfully.",
+                Data = artworks,
+            }
+        );
     }
 }
