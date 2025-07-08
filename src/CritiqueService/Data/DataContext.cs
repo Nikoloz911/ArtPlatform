@@ -4,6 +4,7 @@ namespace CritiqueService.Data;
 public class DataContext : DbContext
 {
    public DbSet<Critique> Critiques { get; set; }
+   public DbSet<Artwork> Artworks { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         var configuration = new ConfigurationBuilder()

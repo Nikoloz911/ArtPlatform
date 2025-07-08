@@ -3,6 +3,9 @@
 
 using CommonUtils.JWT;
 using CritiqueService.Data;
+using CritiqueService.RabbitMQ;
+using CritiqueService.Validators;
+using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +20,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 builder.Services.AddDbContext<DataContext>();
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
+builder.Services.AddValidatorsFromAssemblyContaining<AddCritiqueValidator>();
+builder.Services.AddHostedService<CritiqueServiceRabbitMQ>();
 
 var app = builder.Build();
 
