@@ -52,9 +52,9 @@ public class CritiqueController : ControllerBase
         return Ok(response);
     }
     /// ADD CRITIQUE    /// ADD CRITIQUE   /// ADD CRITIQUE   /// ADD CRITIQUE  
-    //  [Authorize (Policy = "CriticOnly")]
 
     [HttpPost("")]
+    [Authorize (Policy = "CriticOnly")]
     public async Task<ActionResult<ApiResponse<AddCritiqueResponseDTO>>> AddCritique(AddCritiqueDTO dto)
     {
         ValidationResult validationResult = await _validator.ValidateAsync(dto);
@@ -93,8 +93,8 @@ public class CritiqueController : ControllerBase
         });
     }
     /// UPDATE CRITIQUE   /// UPDATE CRITIQUE   /// UPDATE CRITIQUE   /// UPDATE CRITIQUE
-    //  [Authorize (Policy = "OwnerOnly")]
     [HttpPut("{id}")]
+    [Authorize (Policy = "OwnerOnly")]
     public async Task<ActionResult<ApiResponse<UpdateCritiqueResponseDTO>>> UpdateCritique(int id, UpdateCritiqueDTO dto)
     {
         var validator = new UpdateCritiqueValidator();
@@ -155,5 +155,4 @@ public class CritiqueController : ControllerBase
             Data = null
         });
     }
-
 }
