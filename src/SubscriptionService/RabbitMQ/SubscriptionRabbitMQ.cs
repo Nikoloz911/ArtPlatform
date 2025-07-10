@@ -1,11 +1,11 @@
-﻿using RabbitMQ.Client;
+﻿using Contracts.DTO;
+using Microsoft.EntityFrameworkCore;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using System.Text;
-using System.Text.Json;
 using SubscriptionService.Data;
 using SubscriptionService.Models;
-using Contracts.DTO;
-using Microsoft.EntityFrameworkCore;
+using System.Text;
+using System.Text.Json;
 
 namespace SubscriptionService.RabbitMQ
 {
@@ -23,9 +23,11 @@ namespace SubscriptionService.RabbitMQ
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
-            _channel.QueueDeclare(queue: "user_created", durable: false, exclusive: false, autoDelete: false, arguments: null);
-            _channel.QueueDeclare(queue: "user_updated_by_id", durable: false, exclusive: false, autoDelete: false, arguments: null);
-            _channel.QueueDeclare(queue: "user_deleted_by_id", durable: false, exclusive: false, autoDelete: false, arguments: null);
+            _channel.ExchangeDeclare("user_events", ExchangeType.Fanout);
+            _channel.QueueDeclare("user_created_subscription", false, false, false, null);
+            _channel.QueueBind("user_created_subscription", "user_events", "");
+            _channel.QueueDeclare("user_updated_by_id", false, false, false, null);
+            _channel.QueueDeclare("user_deleted_by_id", false, false, false, null);
         }
 
         public void StartConsumer()
@@ -40,12 +42,11 @@ namespace SubscriptionService.RabbitMQ
             var consumer = new EventingBasicConsumer(_channel);
             consumer.Received += async (model, ea) =>
             {
+                Console.WriteLine("[Subscription] Received user_created event");
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<DataContext>();
 
-                var body = ea.Body.ToArray();
-                var message = Encoding.UTF8.GetString(body);
-
+                var message = Encoding.UTF8.GetString(ea.Body.ToArray());
                 var userCreated = JsonSerializer.Deserialize<UserCreatedEvent>(message);
                 if (userCreated == null) return;
 
@@ -66,7 +67,7 @@ namespace SubscriptionService.RabbitMQ
                 await context.SaveChangesAsync();
             };
 
-            _channel.BasicConsume(queue: "user_created", autoAck: true, consumer: consumer);
+            _channel.BasicConsume("user_created_subscription", true, consumer);
         }
 
         private void ConsumeUserUpdated()
@@ -77,9 +78,7 @@ namespace SubscriptionService.RabbitMQ
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<DataContext>();
 
-                var body = ea.Body.ToArray();
-                var message = Encoding.UTF8.GetString(body);
-
+                var message = Encoding.UTF8.GetString(ea.Body.ToArray());
                 var userUpdated = JsonSerializer.Deserialize<UpdateUserEvent>(message);
                 if (userUpdated == null) return;
 
@@ -95,7 +94,7 @@ namespace SubscriptionService.RabbitMQ
                 await context.SaveChangesAsync();
             };
 
-            _channel.BasicConsume(queue: "user_updated_by_id", autoAck: true, consumer: consumer);
+            _channel.BasicConsume("user_updated_by_id", true, consumer);
         }
 
         private void ConsumeUserDeleted()
@@ -106,9 +105,7 @@ namespace SubscriptionService.RabbitMQ
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<DataContext>();
 
-                var body = ea.Body.ToArray();
-                var message = Encoding.UTF8.GetString(body);
-
+                var message = Encoding.UTF8.GetString(ea.Body.ToArray());
                 var userDeleted = JsonSerializer.Deserialize<UserDeletedEvent>(message);
                 if (userDeleted == null) return;
 
@@ -119,7 +116,7 @@ namespace SubscriptionService.RabbitMQ
                 await context.SaveChangesAsync();
             };
 
-            _channel.BasicConsume(queue: "user_deleted_by_id", autoAck: true, consumer: consumer);
+            _channel.BasicConsume("user_deleted_by_id", true, consumer);
         }
     }
 }

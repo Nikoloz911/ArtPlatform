@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using UserService.Data;
 using UserService.Models;
+
 public class UserServiceRabbitMQ
 {
     private readonly IServiceProvider _serviceProvider;
@@ -18,11 +19,11 @@ public class UserServiceRabbitMQ
         var factory = new ConnectionFactory() { HostName = "localhost" };
         _connection = factory.CreateConnection();
         _channel = _connection.CreateModel();
-
-     
-        _channel.QueueDeclare(queue: "user_created", durable: false, exclusive: false, autoDelete: false, arguments: null);
-        _channel.QueueDeclare(queue: "user_updated_by_id", durable: false, exclusive: false, autoDelete: false, arguments: null);
-        _channel.QueueDeclare(queue: "user_deleted_by_id", durable: false, exclusive: false, autoDelete: false, arguments: null);
+        _channel.ExchangeDeclare("user_events", ExchangeType.Fanout);
+        _channel.QueueDeclare("user_created_user_service", false, false, false, null);
+        _channel.QueueBind("user_created_user_service", "user_events", "");
+        _channel.QueueDeclare("user_updated_by_id", false, false, false, null);
+        _channel.QueueDeclare("user_deleted_by_id", false, false, false, null);
     }
 
     public void StartConsumer()
@@ -33,49 +34,40 @@ public class UserServiceRabbitMQ
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<DataContext>();
 
-            var body = ea.Body.ToArray();
-            var message = Encoding.UTF8.GetString(body);
-
+            var message = Encoding.UTF8.GetString(ea.Body.ToArray());
             var userEvent = JsonSerializer.Deserialize<UserCreatedEvent>(message);
-            if (userEvent != null)
+            if (userEvent == null) return;
+
+            var user = new User
             {
-                var user = new User
-                {
-                    Id = userEvent.Id,
-                    Name = userEvent.Name,
-                    Email = userEvent.Email,
-                    Password = userEvent.Password,
-                    Biography = userEvent.Biography,
-                    ProfilePictureUrl = userEvent.ProfilePictureUrl,
-                    Role = userEvent.Role,
-                    IsVerified = userEvent.IsVerified,
-                    VerificationCode = userEvent.VerificationCode,
-                    VerificationCodeExpirity = userEvent.VerificationCodeExpirity
-                };
+                Name = userEvent.Name,
+                Email = userEvent.Email,
+                Password = userEvent.Password,
+                Biography = userEvent.Biography,
+                ProfilePictureUrl = userEvent.ProfilePictureUrl,
+                Role = userEvent.Role,
+                IsVerified = userEvent.IsVerified,
+                VerificationCode = userEvent.VerificationCode,
+                VerificationCodeExpirity = userEvent.VerificationCodeExpirity
+            };
 
-                context.Users.Add(user);
-                await context.SaveChangesAsync();
-            }
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
         };
-        _channel.BasicConsume(queue: "user_created", autoAck: true, consumer: createdConsumer);
-
-        // If you want to consume updates/deletes here, add consumers for these queues,
-        // but usually UserService *publishes* them.
-
-        // ... possible other consumers
+        _channel.BasicConsume("user_created_user_service", true, createdConsumer);
     }
 
     public void PublishUserUpdated(UpdateUserEvent userUpdate)
     {
         var json = JsonSerializer.Serialize(userUpdate);
         var body = Encoding.UTF8.GetBytes(json);
-        _channel.BasicPublish(exchange: "", routingKey: "user_updated_by_id", basicProperties: null, body: body);
+        _channel.BasicPublish("", "user_updated_by_id", null, body);
     }
 
     public void PublishUserDeleted(UserDeletedEvent userDeleted)
     {
         var json = JsonSerializer.Serialize(userDeleted);
         var body = Encoding.UTF8.GetBytes(json);
-        _channel.BasicPublish(exchange: "", routingKey: "user_deleted_by_id", basicProperties: null, body: body);
+        _channel.BasicPublish("", "user_deleted_by_id", null, body);
     }
 }
