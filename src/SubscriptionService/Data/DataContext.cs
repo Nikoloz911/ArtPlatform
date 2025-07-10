@@ -1,10 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using CritiqueService.Models;
-namespace CritiqueService.Data;
+using SubscriptionService.Models;
+namespace SubscriptionService.Data;
 public class DataContext : DbContext
 {
-   public DbSet<Critique> Critiques { get; set; }
-   public DbSet<Artwork> Artworks { get; set; }
+    public DbSet<User> Users { get; set; }
+    public DbSet<Subscription> Subscriptions { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         var configuration = new ConfigurationBuilder()

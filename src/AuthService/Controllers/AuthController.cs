@@ -102,19 +102,20 @@ public class AuthController : ControllerBase
         using var connection = factory.CreateConnection();
         using var channel = connection.CreateModel();
 
-        channel.QueueDeclare(
-            queue: "user_created",
+        channel.ExchangeDeclare(
+            exchange: "user_events",
+            type: ExchangeType.Fanout,
             durable: false,
-            exclusive: false,
             autoDelete: false,
             arguments: null
         );
 
         var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(userCreatedEvent));
 
+        // Publish to the exchange (NOT a specific queue)
         channel.BasicPublish(
-            exchange: "",
-            routingKey: "user_created",
+            exchange: "user_events", 
+            routingKey: "",         
             basicProperties: null,
             body: body
         );
