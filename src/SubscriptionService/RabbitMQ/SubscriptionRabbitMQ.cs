@@ -2,20 +2,20 @@
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
-using AuthService.Data;
-using AuthService.Models;
+using SubscriptionService.Data;
+using SubscriptionService.Models;
 using Contracts.DTO;
 using Microsoft.EntityFrameworkCore;
 
-namespace AuthService.RabbitMQ
+namespace SubscriptionService.RabbitMQ
 {
-    public class AuthServiceRabbitMQ
+    public class SubscriptionRabbitMQ
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly IConnection _connection;
         private readonly IModel _channel;
 
-        public AuthServiceRabbitMQ(IServiceProvider serviceProvider)
+        public SubscriptionRabbitMQ(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
 
@@ -30,8 +30,49 @@ namespace AuthService.RabbitMQ
 
         public void StartConsumer()
         {
-            var updatedConsumer = new EventingBasicConsumer(_channel);
-            updatedConsumer.Received += async (model, ea) =>
+            ConsumeUserCreated();
+            ConsumeUserUpdated();
+            ConsumeUserDeleted();
+        }
+
+        private void ConsumeUserCreated()
+        {
+            var consumer = new EventingBasicConsumer(_channel);
+            consumer.Received += async (model, ea) =>
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<DataContext>();
+
+                var body = ea.Body.ToArray();
+                var message = Encoding.UTF8.GetString(body);
+
+                var userCreated = JsonSerializer.Deserialize<UserCreatedEvent>(message);
+                if (userCreated == null) return;
+
+                var user = new User
+                {
+                    Name = userCreated.Name,
+                    Email = userCreated.Email,
+                    Password = userCreated.Password,
+                    Biography = userCreated.Biography,
+                    ProfilePictureUrl = userCreated.ProfilePictureUrl,
+                    Role = userCreated.Role,
+                    IsVerified = userCreated.IsVerified,
+                    VerificationCode = userCreated.VerificationCode,
+                    VerificationCodeExpirity = userCreated.VerificationCodeExpirity
+                };
+
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+            };
+
+            _channel.BasicConsume(queue: "user_created", autoAck: true, consumer: consumer);
+        }
+
+        private void ConsumeUserUpdated()
+        {
+            var consumer = new EventingBasicConsumer(_channel);
+            consumer.Received += async (model, ea) =>
             {
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<DataContext>();
@@ -53,10 +94,14 @@ namespace AuthService.RabbitMQ
                 context.Users.Update(user);
                 await context.SaveChangesAsync();
             };
-            _channel.BasicConsume(queue: "user_updated_by_id", autoAck: true, consumer: updatedConsumer);
 
-            var deletedConsumer = new EventingBasicConsumer(_channel);
-            deletedConsumer.Received += async (model, ea) =>
+            _channel.BasicConsume(queue: "user_updated_by_id", autoAck: true, consumer: consumer);
+        }
+
+        private void ConsumeUserDeleted()
+        {
+            var consumer = new EventingBasicConsumer(_channel);
+            consumer.Received += async (model, ea) =>
             {
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<DataContext>();
@@ -73,20 +118,8 @@ namespace AuthService.RabbitMQ
                 context.Users.Remove(user);
                 await context.SaveChangesAsync();
             };
-            _channel.BasicConsume(queue: "user_deleted_by_id", autoAck: true, consumer: deletedConsumer);
-        }
 
-        public void PublishUserCreated(UserCreatedEvent user)
-        {
-            var json = JsonSerializer.Serialize(user);
-            var body = Encoding.UTF8.GetBytes(json);
-
-            _channel.BasicPublish(
-                exchange: "",
-                routingKey: "user_created",
-                basicProperties: null,
-                body: body
-            );
+            _channel.BasicConsume(queue: "user_deleted_by_id", autoAck: true, consumer: consumer);
         }
     }
 }
