@@ -12,7 +12,7 @@ public class SMTP_Registration
     public static void EmailSender(string ToAddress, string firstName, string verificationCode)
     {
         string senderEmail = "nikalobjanidze014@gmail.com";
-        string appPassword = "qrat aagr knvh lrbe"; // APP PASSWORD
+        string appPassword = ""; // APP PASSWORD
 
         /// HTML CONTENT OF EMAIL  /// HTML CONTENT OF EMAIL  /// HTML CONTENT OF EMAIL
         /// HTML CONTENT OF EMAIL  /// HTML CONTENT OF EMAIL  /// HTML CONTENT OF EMAIL
