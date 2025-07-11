@@ -7,8 +7,6 @@ using SubscriptionService.Data;
 using SubscriptionService.Helpers;
 using SubscriptionService.RabbitMQ;
 
-/// SUBSCRIPTION SERVICE 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // JWT
@@ -23,7 +21,6 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<DataContext>();
 builder.Services.AddAutoMapper(typeof(SubscriptionMappingProfile));
-//builder.Services.AddValidatorsFromAssemblyContaining<UpdateUserValidator>();
 
 var app = builder.Build();
 

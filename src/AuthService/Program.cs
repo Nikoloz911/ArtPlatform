@@ -22,6 +22,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<DataContext>();
 builder.Services.AddAutoMapper(typeof(UserMappingProfile));
 builder.Services.AddValidatorsFromAssemblyContaining<UserRegistrationValidator>();
+builder.Services.AddScoped<IJWTService, JWTService>();
 
 var app = builder.Build();
 
