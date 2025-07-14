@@ -25,6 +25,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CritiqueService", "src\Crit
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubscriptionService", "src\SubscriptionService\SubscriptionService.csproj", "{FE0B4870-C577-4694-9340-EA348997402C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docker", "docker", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		docker-compose.yml = docker-compose.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -157,5 +162,8 @@ Global
 		{A679F53A-2C99-456F-AEF1-C95195FD0CB3} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{ECE3756E-03EA-4078-836E-BF329B50750F} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{FE0B4870-C577-4694-9340-EA348997402C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {59ED7DCC-2843-4F12-AE9B-5EC4ECC52539}
 	EndGlobalSection
 EndGlobal

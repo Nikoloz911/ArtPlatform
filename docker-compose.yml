@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  auth-service:
+    build:
+      context: ../
+      dockerfile: src/AuthService/Dockerfile
+    ports:
+      - "7046:80"
+
+  user-service:
+    build:
+      context: ../
+      dockerfile: src/UserService/Dockerfile
+    ports:
+      - "7086:80"
+
+  category-service:
+    build:
+      context: ../
+      dockerfile: src/CategoryService/Dockerfile
+    ports:
+      - "7221:80"
+
+  artwork-service:
+    build:
+      context: ../
+      dockerfile: src/ArtworkService/Dockerfile
+    ports:
+      - "7147:80"
+
+  critique-service:
+    build:
+      context: ../
+      dockerfile: src/CritiqueService/Dockerfile
+    ports:
+      - "7094:80"
+
+  portfolio-service:
+    build:
+      context: ../
+      dockerfile: src/PortfolioService/Dockerfile
+    ports:
+      - "7150:80"
+
+  subscription-service:
+    build:
+      context: ../
+      dockerfile: src/SubscriptionService/Dockerfile
+    ports:
+      - "7298:80"
