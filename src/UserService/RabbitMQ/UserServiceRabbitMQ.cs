@@ -6,6 +6,7 @@ using System.Text.Json;
 using UserService.Data;
 using UserService.Models;
 
+namespace UserService.RabbitMQ;
 public class UserServiceRabbitMQ
 {
     private readonly IServiceProvider _serviceProvider;
