@@ -1,51 +1,59 @@
-version: '3.8'
-
 services:
   auth-service:
     build:
-      context: ../
+      context: .
       dockerfile: src/AuthService/Dockerfile
     ports:
       - "7046:80"
 
   user-service:
     build:
-      context: ../
+      context: .
       dockerfile: src/UserService/Dockerfile
     ports:
       - "7086:80"
 
   category-service:
     build:
-      context: ../
+      context: .
       dockerfile: src/CategoryService/Dockerfile
     ports:
       - "7221:80"
 
   artwork-service:
     build:
-      context: ../
+      context: .
       dockerfile: src/ArtworkService/Dockerfile
     ports:
       - "7147:80"
 
   critique-service:
     build:
-      context: ../
+      context: .
       dockerfile: src/CritiqueService/Dockerfile
     ports:
       - "7094:80"
 
   portfolio-service:
     build:
-      context: ../
+      context: .
       dockerfile: src/PortfolioService/Dockerfile
     ports:
       - "7150:80"
 
   subscription-service:
     build:
-      context: ../
+      context: .
       dockerfile: src/SubscriptionService/Dockerfile
     ports:
       - "7298:80"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-ui
+    ports:
+      - "5672:5672"   
+      - "15672:15672" 
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
